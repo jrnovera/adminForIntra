@@ -5,12 +5,13 @@ import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAenYluN8p69uK-46heBNk6FwSCwsQw9y4",
-  authDomain: "swiftcare-bd842.firebaseapp.com",
-  projectId: "swiftcare-bd842",
-  storageBucket: "swiftcare-bd842.firebasestorage.app",
-  messagingSenderId: "209622156815",
-  appId: "1:209622156815:web:4ddb254e4043c978fe857a"
+  apiKey: "AIzaSyDfxLrPo_G1Ej4vkp8zjDXOydCd519yKio",
+  authDomain: "intara-app.firebaseapp.com",
+  projectId: "intara-app",
+  storageBucket: "intara-app.firebasestorage.app",
+  messagingSenderId: "799559628705",
+  appId: "1:799559628705:web:6170a56d12120463e9bde0",
+  measurementId: "G-19GZ8NBSVT"
 };
 
 
