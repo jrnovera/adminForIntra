@@ -40,6 +40,7 @@ interface DestinationData {
   latlong: string;
   image: string | null;
   imagePath?: string;
+  history: string;
   ratings: number[];
   isPopular: boolean;
   createdAt: unknown;
@@ -52,6 +53,7 @@ const emptyForm = {
   trivia: "",
   source: "",
   latlong: "",
+  history: "",
   isPopular: false,
 };
 
@@ -155,6 +157,7 @@ export default function Destinations() {
           trivia: raw.trivia || "",
           source: raw.source || "",
           latlong: formatLatLong(raw.latlong),
+          history: raw.history || "",
           image: raw.image || null,
           imagePath: raw.imagePath || undefined,
           ratings: Array.isArray(raw.ratings) ? raw.ratings : [],
@@ -191,6 +194,7 @@ export default function Destinations() {
       trivia: dest.trivia,
       source: dest.source,
       latlong: dest.latlong,
+      history: dest.history,
       isPopular: dest.isPopular,
     });
     setImageFile(null);
@@ -244,6 +248,7 @@ export default function Destinations() {
           latlong,
           trivia: form.trivia,
           source: form.source,
+          history: form.history,
           isPopular: form.isPopular,
           image: imageFile && imageData ? imageData.url : currentData.image ?? null,
           ...(imageFile && imageData ? { imagePath: imageData.path } : {}),
@@ -265,6 +270,7 @@ export default function Destinations() {
           latlong,
           trivia: form.trivia,
           source: form.source,
+          history: form.history,
           isPopular: form.isPopular,
           image: imageData ? imageData.url : null,
           ...(imageData ? { imagePath: imageData.path } : {}),
@@ -572,6 +578,20 @@ export default function Destinations() {
                   onChange={(e) => setForm({ ...form, source: e.target.value })}
                   className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   placeholder="Source URL or reference"
+                />
+              </div>
+
+              {/* History */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  History
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.history}
+                  onChange={(e) => setForm({ ...form, history: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
+                  placeholder="History of this destination..."
                 />
               </div>
 
