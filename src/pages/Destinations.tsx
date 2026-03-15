@@ -40,6 +40,8 @@ interface DestinationData {
   latlong: string;
   image: string | null;
   imagePath?: string;
+  sampleImage?: string[];
+  sampleImagePath?: string[];
   history: string;
   ratings: number[];
   isPopular: boolean;
@@ -140,6 +142,12 @@ export default function Destinations() {
   const [error, setError] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const sampleImagesInputRef = useRef<HTMLInputElement>(null);
+  const [sampleImageFiles, setSampleImageFiles] = useState<File[]>([]);
+  const [sampleImagePreviews, setSampleImagePreviews] = useState<string[]>([]);
+  const [existingSampleImages, setExistingSampleImages] = useState<{url: string, path: string}[]>([]);
+  const [deletedSampleImagePaths, setDeletedSampleImagePaths] = useState<string[]>([]);
 
   const destinationsRef = collection(db, "destinations");
 
@@ -160,6 +168,8 @@ export default function Destinations() {
           history: raw.history || "",
           image: raw.image || null,
           imagePath: raw.imagePath || undefined,
+          sampleImage: Array.isArray(raw.sampleImage) ? raw.sampleImage : [],
+          sampleImagePath: Array.isArray(raw.sampleImagePath) ? raw.sampleImagePath : [],
           ratings: Array.isArray(raw.ratings) ? raw.ratings : [],
           isPopular: Boolean(raw.isPopular),
           createdAt: raw.createdAt,
@@ -182,6 +192,10 @@ export default function Destinations() {
     setForm(emptyForm);
     setImageFile(null);
     setImagePreview(null);
+    setSampleImageFiles([]);
+    setSampleImagePreviews([]);
+    setExistingSampleImages([]);
+    setDeletedSampleImagePaths([]);
     setError("");
     setModalOpen(true);
   }
@@ -199,6 +213,21 @@ export default function Destinations() {
     });
     setImageFile(null);
     setImagePreview(dest.image || null);
+    setSampleImageFiles([]);
+    setSampleImagePreviews([]);
+    
+    const existing: {url: string, path: string}[] = [];
+    if (dest.sampleImage && dest.sampleImagePath && dest.sampleImage.length === dest.sampleImagePath.length) {
+        for (let i = 0; i < dest.sampleImage.length; i++) {
+            existing.push({ url: dest.sampleImage[i], path: dest.sampleImagePath[i] });
+        }
+    } else if (dest.sampleImage) {
+         for (let i = 0; i < dest.sampleImage.length; i++) {
+            existing.push({ url: dest.sampleImage[i], path: dest.sampleImagePath?.[i] || "" });
+         }
+    }
+    setExistingSampleImages(existing);
+    setDeletedSampleImagePaths([]);
     setError("");
     setModalOpen(true);
   }
@@ -212,6 +241,42 @@ export default function Destinations() {
       reader.readAsDataURL(file);
     }
   }
+
+  function handleSampleImagesChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setSampleImageFiles(prev => [...prev, ...files]);
+      const newPreviews = files.map(file => URL.createObjectURL(file));
+      setSampleImagePreviews(prev => [...prev, ...newPreviews]);
+    }
+    if (e.target) e.target.value = '';
+  }
+
+  function removeSampleImageFile(index: number) {
+      setSampleImageFiles(prev => prev.filter((_, i) => i !== index));
+      setSampleImagePreviews(prev => {
+          const newPreviews = [...prev];
+          URL.revokeObjectURL(newPreviews[index]);
+          newPreviews.splice(index, 1);
+          return newPreviews;
+      });
+  }
+
+  function removeExistingSampleImage(index: number) {
+      const imgToRemove = existingSampleImages[index];
+      if (imgToRemove.path) {
+          setDeletedSampleImagePaths(prev => [...prev, imgToRemove.path]);
+      }
+      setExistingSampleImages(prev => prev.filter((_, i) => i !== index));
+  }
+
+  useEffect(() => {
+    if (!modalOpen) {
+       sampleImagePreviews.forEach(URL.revokeObjectURL);
+       setSampleImagePreviews([]);
+       setSampleImageFiles([]);
+    }
+  }, [modalOpen]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -242,6 +307,29 @@ export default function Destinations() {
           }
         }
 
+        for (const path of deletedSampleImagePaths) {
+            try {
+                await deleteObject(ref(storage, path));
+            } catch {
+                // ignore
+            }
+        }
+        
+        const newSampleImagesData = [];
+        for (const file of sampleImageFiles) {
+            const data = await uploadDestinationImage(file, form.name + "_sample");
+            newSampleImagesData.push(data);
+        }
+
+        const finalSampleImages = [
+            ...existingSampleImages.map(img => img.url),
+            ...newSampleImagesData.map(img => img.url)
+        ];
+        const finalSampleImagePaths = [
+            ...existingSampleImages.map(img => img.path),
+            ...newSampleImagesData.map(img => img.path)
+        ];
+
         await updateDoc(docRef, {
           name: form.name,
           information: form.information,
@@ -252,6 +340,8 @@ export default function Destinations() {
           isPopular: form.isPopular,
           image: imageFile && imageData ? imageData.url : currentData.image ?? null,
           ...(imageFile && imageData ? { imagePath: imageData.path } : {}),
+          sampleImage: finalSampleImages,
+          sampleImagePath: finalSampleImagePaths,
           ratings: Array.isArray((currentData as { ratings?: unknown }).ratings)
             ? ((currentData as { ratings: number[] }).ratings)
             : [0],
@@ -264,6 +354,12 @@ export default function Destinations() {
           imageData = await uploadDestinationImage(imageFile, form.name);
         }
 
+        const newSampleImagesData = [];
+        for (const file of sampleImageFiles) {
+            const data = await uploadDestinationImage(file, form.name + "_sample");
+            newSampleImagesData.push(data);
+        }
+
         await addDoc(destinationsRef, {
           name: form.name,
           information: form.information,
@@ -274,6 +370,8 @@ export default function Destinations() {
           isPopular: form.isPopular,
           image: imageData ? imageData.url : null,
           ...(imageData ? { imagePath: imageData.path } : {}),
+          sampleImage: newSampleImagesData.map(img => img.url),
+          sampleImagePath: newSampleImagesData.map(img => img.path),
           ratings: [0],
           createdAt: serverTimestamp(),
         });
@@ -303,6 +401,17 @@ export default function Destinations() {
           } catch {
             // ignore
           }
+        }
+        if (Array.isArray(data.sampleImagePath)) {
+           for (const path of data.sampleImagePath) {
+              if (path) {
+                 try {
+                    await deleteObject(ref(storage, path));
+                 } catch {
+                    // ignore
+                 }
+              }
+           }
         }
       }
       await deleteDoc(docRef);
@@ -504,6 +613,68 @@ export default function Destinations() {
                   onChange={handleImageChange}
                   className="hidden"
                 />
+              </div>
+
+              {/* Sample Images Upload */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  Sample Images
+                </label>
+                <div
+                  onClick={() => sampleImagesInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center cursor-pointer hover:border-blue-500/50 transition mb-4"
+                >
+                  <Upload className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+                  <p className="text-slate-400 text-sm">Click to upload sample images</p>
+                  <p className="text-slate-500 text-xs mt-1">Select multiple PNG, JPG, WEBP</p>
+                </div>
+                <input
+                  ref={sampleImagesInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleSampleImagesChange}
+                  className="hidden"
+                />
+                
+                {/* Previews for Sample Images */}
+                {(existingSampleImages.length > 0 || sampleImagePreviews.length > 0) && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
+                    {existingSampleImages.map((img, idx) => (
+                      <div key={`existing-${idx}`} className="relative group">
+                        <img
+                          src={img.url}
+                          alt="Existing Sample"
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeExistingSampleImage(idx)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition shadow-lg"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {sampleImagePreviews.map((preview, idx) => (
+                      <div key={`new-${idx}`} className="relative group">
+                        <img
+                          src={preview}
+                          alt="New Sample"
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeSampleImageFile(idx)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition shadow-lg"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <div className="absolute inset-0 border-2 border-blue-500 rounded-lg pointer-events-none" />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Name */}
