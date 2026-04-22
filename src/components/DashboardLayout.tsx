@@ -19,8 +19,13 @@ export default function DashboardLayout() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   async function handleLogout() {
+    setShowLogoutConfirm(true);
+  }
+
+  async function confirmLogout() {
     await logout();
     navigate("/login");
   }
@@ -115,6 +120,36 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/20 mb-4 mx-auto">
+              <LogOut className="w-6 h-6 text-red-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white text-center mb-2">
+              Sign Out
+            </h3>
+            <p className="text-slate-400 text-center mb-6">
+              Are you sure you want to log out?
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={confirmLogout}
+                className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition cursor-pointer"
+              >
+                Yes, Sign Out
+              </button>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
