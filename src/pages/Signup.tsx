@@ -21,8 +21,9 @@ export default function Signup() {
       return setError("Passwords do not match");
     }
 
-    if (password.length < 6) {
-      return setError("Password must be at least 6 characters");
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return setError("Password must be at least 8 characters long and contain at least one letter, one number, and one special character");
     }
 
     setLoading(true);
